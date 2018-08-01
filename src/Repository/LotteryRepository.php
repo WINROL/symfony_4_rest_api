@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\Lottery;
+use App\Entity\LotteryProfile;
 use App\Structure\Lottery\ParticipantStructure;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Symfony\Bridge\Doctrine\RegistryInterface;
@@ -20,12 +21,8 @@ class LotteryRepository extends ServiceEntityRepository
         parent::__construct($registry, Lottery::class);
     }
 
-    /**
-     * @param Lottery $lottery
-     * @return array|ParticipantStructure[]
-     * @throws \Doctrine\DBAL\DBALException
-     */
-    public function getLotteryParticipants(Lottery $lottery) :array
+
+    protected function getLotteryParticipantsBase(Lottery $lottery, int $participantId = null) :array
     {
         $conn = $this->getEntityManager()->getConnection();
 
@@ -39,7 +36,7 @@ class LotteryRepository extends ServiceEntityRepository
                 INNER JOIN lottery_ticket_price ltp ON ltp.lottery_id = :lottery_id
                   AND ltp.currency = ld.currency
                 INNER JOIN lottery_profile lp ON lp.id = ld.player_uuid
-                WHERE ld.processed_at BETWEEN :date_start AND :date_end
+                WHERE ld.processed_at BETWEEN :date_start AND :date_end AND (0 = :player_id OR lp.id = :player_id)
                 GROUP BY ld.player_uuid
                 HAVING(ticketCount >= :entry_price)
                 ORDER BY ticketCount DESC
@@ -50,6 +47,7 @@ class LotteryRepository extends ServiceEntityRepository
             'date_start' => $lottery->getStartDate()->format('Y-m-d H:i:s'),
             'date_end' => $lottery->getEndDate()->format('Y-m-d H:i:s'),
             'entry_price' => $lottery->getEntryPrice(),
+            'player_id' => null === $participantId ? 0 : $participantId
         ]);
 
         $result = [];
@@ -69,6 +67,21 @@ class LotteryRepository extends ServiceEntityRepository
             return [];
         }
 
+        return $result;
+    }
+
+    /**
+     * @param Lottery $lottery
+     * @return array
+     */
+    public function getLotteryParticipants(Lottery $lottery) :array
+    {
+        $result = $this->getLotteryParticipantsBase($lottery);
+
+        if (empty($result)) {
+            return [];
+        }
+
         $res = [
             'content' => $result,
             'length' => count($result),
@@ -77,32 +90,18 @@ class LotteryRepository extends ServiceEntityRepository
         return $res;
     }
 
-//    /**
-//     * @return Lottery[] Returns an array of Lottery objects
-//     */
-    /*
-    public function findByExampleField($value)
+    /**
+     * @param Lottery $lottery
+     * @param LotteryProfile $lotteryProfile
+     * @return ParticipantStructure|null
+     */
+    public function getParticipantLotteryInfo(Lottery $lottery, LotteryProfile $lotteryProfile) :?ParticipantStructure
     {
-        return $this->createQueryBuilder('l')
-            ->andWhere('l.exampleField = :val')
-            ->setParameter('val', $value)
-            ->orderBy('l.id', 'ASC')
-            ->setMaxResults(10)
-            ->getQuery()
-            ->getResult()
-        ;
-    }
-    */
+        $result = $result = $this->getLotteryParticipantsBase($lottery, $lotteryProfile->getId());
+        if (!$result) {
+            return null;
+        }
 
-    /*
-    public function findOneBySomeField($value): ?Lottery
-    {
-        return $this->createQueryBuilder('l')
-            ->andWhere('l.exampleField = :val')
-            ->setParameter('val', $value)
-            ->getQuery()
-            ->getOneOrNullResult()
-        ;
+        return array_shift($result);
     }
-    */
 }

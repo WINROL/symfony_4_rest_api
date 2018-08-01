@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Lottery;
+use App\Entity\LotteryProfile;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -53,23 +54,30 @@ class LotteryController extends BaseController
      *     "/lottery/{lotteryId}/participants/{playerUUID}",
      *     requirements={"lotteryId" = "^\d+$", "playerUUID" = "^\d+$"}
      * )
-     *
-     * @param $lotteryID
+     * @param $lotteryId
      * @param $playerUUID
      * @return Response
-     * @throws \Doctrine\DBAL\DBALException
      */
     public function getLotteryParticipantAction($lotteryId, $playerUUID)
     {
         try {
             $lottery = $this->getLottery($lotteryId);
+            $repository = $this->getDoctrine()->getRepository(LotteryProfile::class);
+            $player = $repository->find($playerUUID);
+            if (!$player) {
+                throw new NotFoundHttpException('Player not found');
+            }
+
         } catch (NotFoundHttpException $exception) {
             return $this->createApiResponse([], 404);
         }
 
         $repository = $this->getDoctrine()->getRepository(Lottery::class);
-        $lotteryParticipants = $repository->getParticipantLotteryInfo($lottery);
+        $lotteryParticipant = $repository->getParticipantLotteryInfo($lottery, $player);
+        if (null === $lotteryParticipant) {
+            $lotteryParticipant = [];
+        }
 
-        return $this->createApiResponse($lotteryParticipants);
+        return $this->createApiResponse($lotteryParticipant);
     }
 }
