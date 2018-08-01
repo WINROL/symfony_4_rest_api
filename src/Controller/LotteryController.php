@@ -4,9 +4,8 @@ namespace App\Controller;
 
 use App\Entity\Lottery;
 use FOS\RestBundle\Controller\Annotations as Rest;
-use FOS\RestBundle\View\View;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 
 /**
@@ -17,16 +16,60 @@ use Symfony\Component\Routing\Annotation\Route;
  */
 class LotteryController extends BaseController
 {
-    /**
-     * @Rest\Route("/lottery")
-     */
-    public function getLotteriesAction()
+    protected function getLottery($lotteryId)
     {
         $repository = $this->getDoctrine()->getRepository(Lottery::class);
+        $lottery = $repository->find($lotteryId);
+        if (!$lottery) {
+            throw new NotFoundHttpException('Lottery not found');
+        }
 
-        // query for a single Product by its primary key (usually "id")
-        $lottery = $repository->findAll();
+        return $lottery;
+    }
 
-        return $this->createApiResponse($lottery);
+    /**
+     * @Rest\Route("/lottery/{lotteryId}/participants", requirements={"lotteryID" = "^\d+$"})
+     *
+     * @param $lotteryId
+     * @return Response
+     * @throws \Doctrine\DBAL\DBALException
+     */
+    public function getLotteryParticipantsAction($lotteryId)
+    {
+        try {
+            $lottery = $this->getLottery($lotteryId);
+        } catch (NotFoundHttpException $exception) {
+            return $this->createApiResponse([], 404);
+        }
+
+        $repository = $this->getDoctrine()->getRepository(Lottery::class);
+        $lotteryParticipants = $repository->getLotteryParticipants($lottery);
+
+        return $this->createApiResponse($lotteryParticipants);
+    }
+
+    /**
+     * @Rest\Route(
+     *     "/lottery/{lotteryId}/participants/{playerUUID}",
+     *     requirements={"lotteryId" = "^\d+$", "playerUUID" = "^\d+$"}
+     * )
+     *
+     * @param $lotteryID
+     * @param $playerUUID
+     * @return Response
+     * @throws \Doctrine\DBAL\DBALException
+     */
+    public function getLotteryParticipantAction($lotteryId, $playerUUID)
+    {
+        try {
+            $lottery = $this->getLottery($lotteryId);
+        } catch (NotFoundHttpException $exception) {
+            return $this->createApiResponse([], 404);
+        }
+
+        $repository = $this->getDoctrine()->getRepository(Lottery::class);
+        $lotteryParticipants = $repository->getParticipantLotteryInfo($lottery);
+
+        return $this->createApiResponse($lotteryParticipants);
     }
 }

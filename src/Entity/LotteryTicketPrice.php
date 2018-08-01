@@ -6,7 +6,12 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * @ORM\Entity(repositoryClass="App\Repository\LotteryTicketPriceRepository")
- * @ORM\Table(name="lottery_ticket_price")
+ * @ORM\Table(
+ *     name="lottery_ticket_price",
+ *     indexes={
+ *          @ORM\Index(name="IDX_ltp_currency", columns={"currency"})
+ *      }
+ * )
  */
 class LotteryTicketPrice
 {

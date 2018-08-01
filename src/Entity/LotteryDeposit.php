@@ -6,7 +6,13 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * @ORM\Entity(repositoryClass="App\Repository\LotteryDepositRepository")
- * @ORM\Table(name="lottery_deposit")
+ * @ORM\Table(
+ *     name="lottery_deposit",
+ *     indexes={
+ *          @ORM\Index(name="IDX_ld_processed_at", columns={"processed_at"}),
+ *          @ORM\Index(name="IDX_ld_currency", columns={"currency"})
+ *      }
+ * )
  */
 class LotteryDeposit
 {
